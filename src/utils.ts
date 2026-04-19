@@ -1,4 +1,4 @@
-import { Point, Points } from "./structure";
+import { Point, Points } from './structure';
 
 /**
  * 判断点位是否在图形内部
@@ -15,8 +15,7 @@ export const isInSide = (point: Point, vs: Point[]) => {
     const xj = vs[j][0],
       yj = vs[j][1];
 
-    const intersect =
-      yi > y != yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
+    const intersect = yi > y != yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
     if (intersect) inside = !inside;
   }
   return inside;
@@ -90,10 +89,10 @@ export const getAdaptImgScale = (
  */
 export const hexToRgba = (hex: string, opacity = 1) => {
   const start = hex.slice(0, 1);
-  if (start === "#") {
-    let hexNumbs = hex.slice(1).split("");
+  if (start === '#') {
+    let hexNumbs = hex.slice(1).split('');
     if (hexNumbs.length === 3) {
-      hexNumbs = hexNumbs.map((v) => v + v);
+      hexNumbs = hexNumbs.map(v => v + v);
     } else if (hexNumbs.length === 6) {
       hexNumbs = hexNumbs
         .reduce<string[]>((arr, item, index) => {
@@ -106,22 +105,20 @@ export const hexToRgba = (hex: string, opacity = 1) => {
         }, [])
         .reverse();
     } else {
-      throw "请输入正确的 16 进制颜色";
+      throw '请输入正确的 16 进制颜色';
     }
-    return `rgba(${hexNumbs
-      .map((v) => Number.parseInt(v, 16))
-      .join(",")}, ${opacity})`;
+    return `rgba(${hexNumbs.map(v => Number.parseInt(v, 16)).join(',')}, ${opacity})`;
   } else {
     return hex;
   }
 };
 
 export const dataURIToBlob = (dataURI: string) => {
-  const binStr = atob(dataURI.split(",")[1]),
-    len = binStr.length,
-    arr = new Uint8Array(len);
+  const binStr = atob(dataURI.split(',')[1]);
+  const len = binStr.length;
+  const arr = new Uint8Array(len);
 
-  for (var i = 0; i < len; i++) {
+  for (let i = 0; i < len; i++) {
     arr[i] = binStr.charCodeAt(i);
   }
 

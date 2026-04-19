@@ -1,45 +1,43 @@
-import { Shape } from "./Shape";
+import { Shape } from './Shape';
 
 type ShapeEvent = (shape: Shape) => void; // 特定 shape 事件
-type NotifyEvent = (props: any) => void; // 通知事件
+
+/** 事件回调函数类型 */
+export type EventCallback = (data: unknown) => void;
 
 // 内置事件
 interface EmitEventMap {
   select: ShapeEvent; // shape 被选中
   create: ShapeEvent; // shape 创建
   delete: ShapeEvent; // shape 删除
-  update: NotifyEvent; // 更新
-  labelType: NotifyEvent; // 标注类型修改
-  init: NotifyEvent; // 初始化
-  imageReady: NotifyEvent; // 图片加载成功
+  update: EventCallback; // 更新
+  labelType: EventCallback; // 标注类型修改
+  init: EventCallback; // 初始化
+  imageReady: EventCallback; // 图片加载成功
 
-  shapeRegister: NotifyEvent; // 图形注册
+  shapeRegister: EventCallback; // 图形注册
 
-  beforeRender: NotifyEvent; // 渲染之前
-  afterRender: NotifyEvent; // 渲染之后
+  beforeRender: EventCallback; // 渲染之前
+  afterRender: EventCallback; // 渲染之后
 
-  beforeClear: NotifyEvent; // 画布清除之前
-  afterClear: NotifyEvent; // 画布清除之后
+  beforeClear: EventCallback; // 画布清除之前
+  afterClear: EventCallback; // 画布清除之后
 
-  beforeRenderBackground: NotifyEvent; // 渲染背景之前
-  afterRenderBackground: NotifyEvent; // 渲染背景之后
+  beforeRenderBackground: EventCallback; // 渲染背景之前
+  afterRenderBackground: EventCallback; // 渲染背景之后
 
-  beforeRenderImage: NotifyEvent; // 渲染图片之前
-  afterRenderImage: NotifyEvent; // 渲染图片之后
+  beforeRenderImage: EventCallback; // 渲染图片之前
+  afterRenderImage: EventCallback; // 渲染图片之后
 
-  beforeRenderShape: NotifyEvent; // 渲染图形之前
-  afterRenderShape: NotifyEvent; // 渲染图形之后
+  beforeRenderShape: EventCallback; // 渲染图形之前
+  afterRenderShape: EventCallback; // 渲染图形之后
 
-  beforeRenderDrawing: NotifyEvent; // 渲染当前绘图之前
-  afterRenderDrawing: NotifyEvent; // 渲染当前绘图之后
+  beforeRenderDrawing: EventCallback; // 渲染当前绘图之前
+  afterRenderDrawing: EventCallback; // 渲染当前绘图之后
 }
 type EmitEventKey = keyof EmitEventMap;
 
-enum MethodTypes {
-  "on" = "on",
-  "once" = "once",
-}
-type IMethodTypes = keyof typeof MethodTypes;
+type IMethodTypes = 'on' | 'once';
 type IEvent<K extends keyof EmitEventMap> = {
   type: IMethodTypes;
   fn: EmitEventMap[K];
@@ -52,13 +50,10 @@ type IEventMap = {
  */
 export class EventEmitter {
   private getEvents: (type: EmitEventKey) => IEvent<EmitEventKey>[];
-  private createEvent: (
-    type: EmitEventKey,
-    event: IEvent<EmitEventKey>
-  ) => void;
+  private createEvent: (type: EmitEventKey, event: IEvent<EmitEventKey>) => void;
   constructor() {
     const eventMap = {} as IEventMap;
-    this.getEvents = (type) => {
+    this.getEvents = type => {
       return eventMap[type] || [];
     };
     this.createEvent = (type, event) => {
@@ -68,12 +63,13 @@ export class EventEmitter {
       (eventMap[type] as IEvent<EmitEventKey>[]).push(event);
     };
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   emit(type: EmitEventKey, data?: any) {
     const fns = this.getEvents(type);
     if (!fns.length) return;
-    fns.forEach(({ fn, type }, idx) => {
+    fns.forEach(({ fn, type: t }, idx) => {
       fn(data);
-      if (type === "once") {
+      if (t === 'once') {
         fns.splice(idx, 1);
       }
     });
@@ -81,18 +77,20 @@ export class EventEmitter {
   on<K extends keyof EmitEventMap>(type: K, cb: EmitEventMap[K]) {
     this.createEvent(type, {
       fn: cb,
-      type: "on",
+      type: 'on',
     });
     return () => {
       const events = this.getEvents(type);
       const idx = events.findIndex(({ fn }) => fn === cb);
-      idx && events && events.splice(idx, 1);
+      if (idx > -1) {
+        events.splice(idx, 1);
+      }
     };
   }
   once<K extends keyof EmitEventMap>(type: K, cb: EmitEventMap[K]) {
     this.createEvent(type, {
       fn: cb,
-      type: "once",
+      type: 'once',
     });
   }
 }

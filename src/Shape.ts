@@ -1,19 +1,19 @@
-import { EventReceiver } from "./EventReceiver";
-import { Points, TColor, Point } from "./structure";
-import { isInCircle, isInSide, getDistance, getRectPoints } from "./utils";
-import _ from "./lodash";
-import { IDG } from "./IDGenerator";
-import { Popover, PopoverContent } from "./Popover";
+import { EventReceiver } from './EventReceiver';
+import { Points, TColor, Point } from './structure';
+import { isInCircle, isInSide, getDistance, getRectPoints } from './utils';
+import _ from './lodash';
+import { IDG } from './IDGenerator';
+import { Popover, PopoverContent } from './Popover';
 
 export enum ShapeType {
-  "Polygon" = "Polygon",
-  "Rect" = "Rect",
+  'Polygon' = 'Polygon',
+  'Rect' = 'Rect',
 }
 export type TShapeType = keyof typeof ShapeType;
 export enum ShapeStatus {
-  "normal" = "normal",
-  "active" = "active",
-  "disabled" = "disabled",
+  'normal' = 'normal',
+  'active' = 'active',
+  'disabled' = 'disabled',
 }
 type TShapeStatus = keyof typeof ShapeStatus;
 export interface IShapeStyle {
@@ -28,25 +28,25 @@ export type IShapeOptionsStyle = Record<TShapeStatus, Partial<IShapeStyle>>;
 export type TShapeStyle = Partial<IShapeStyle>;
 
 export const normal: IShapeStyle = {
-  dotColor: "red",
+  dotColor: 'red',
   dotRadius: 2,
-  lineColor: "#c30",
+  lineColor: '#c30',
   lineWidth: 2,
-  fillColor: "pink",
+  fillColor: 'pink',
 };
 export const active: IShapeStyle = {
-  dotColor: "red",
+  dotColor: 'red',
   dotRadius: 2,
-  lineColor: "transparent",
+  lineColor: 'transparent',
   lineWidth: 0,
-  fillColor: "#c30",
+  fillColor: '#c30',
 };
 export const disabled: IShapeStyle = {
-  dotColor: "#666",
+  dotColor: '#666',
   dotRadius: 0,
-  lineColor: "transparent",
+  lineColor: 'transparent',
   lineWidth: 0,
-  fillColor: "#666",
+  fillColor: '#666',
 };
 
 const defaultStyle: IShapeOptionsStyle = {
@@ -62,7 +62,7 @@ export interface IShapeOptions {
   registerID: string;
   name: string;
   positions: Points;
-  data?: any;
+  data?: Record<string, unknown>;
   tag?: PopoverContent;
   showTag?: boolean;
   closed?: boolean;
@@ -93,7 +93,7 @@ export class Shape extends EventReceiver {
   public tagContent: string;
   public tagger: Popover;
   public max: number | undefined;
-  public data: any;
+  public data: Record<string, unknown> | null;
   constructor(options: IShapeOptions) {
     super();
     const {
@@ -118,7 +118,7 @@ export class Shape extends EventReceiver {
     this.type = type;
     this.name = name;
     this.registerID = registerID;
-    this.status = disabled ? "disabled" : active ? "active" : "normal";
+    this.status = disabled ? 'disabled' : active ? 'active' : 'normal';
     this.positions = positions;
     this.data = data || null;
     this.style = _.merge({}, defaultStyle, style);
@@ -126,11 +126,11 @@ export class Shape extends EventReceiver {
     this.visible = visible;
     this.insert = insert;
     this.showTag = showTag;
-    this.tagContent = tag ? tag.toString() : "";
+    this.tagContent = tag ? tag.toString() : '';
     this.tagger = new Popover({
       content: tag,
       style: {
-        color: "#fff",
+        color: '#fff',
         bgColor: this.getStyle().dotColor,
       },
     });
@@ -153,9 +153,7 @@ export class Shape extends EventReceiver {
     const positions = this.getPositions();
     const style = this.getStyle();
     const { dotRadius } = style;
-    const arcIndex = positions.findIndex((point) =>
-      isInCircle(offset, dotRadius * scale, point)
-    );
+    const arcIndex = positions.findIndex(point => isInCircle(offset, dotRadius * scale, point));
     return arcIndex;
   }
   /**
@@ -177,7 +175,7 @@ export class Shape extends EventReceiver {
     positions.push(start as Point); // 形成闭合
 
     let pre = null as null | ILinePoint;
-    let ps = [] as [ILinePoint, ILinePoint][];
+    const ps = [] as [ILinePoint, ILinePoint][];
     positions.forEach((point, idx) => {
       const lp = {
         idx,
@@ -253,7 +251,7 @@ export class Shape extends EventReceiver {
     // 1.map 计算出鼠标点到边上的距离
     // 2.sort 距离升序排序
     const sort = linePoints
-      .map((lp) => {
+      .map(lp => {
         const { position, idx } = lp;
         const distance = getDistance(position, offset);
         const sp = {
@@ -277,11 +275,11 @@ export class Shape extends EventReceiver {
   }
   setActive(status: boolean) {
     if (this.isDisabled()) return this;
-    this.status = status ? "active" : "normal";
+    this.status = status ? 'active' : 'normal';
     return this;
   }
   isActive() {
-    return this.status === "active";
+    return this.status === 'active';
   }
   close() {
     this.closed = true;
@@ -291,17 +289,17 @@ export class Shape extends EventReceiver {
     return this.closed;
   }
   disabled() {
-    this.status = "disabled";
+    this.status = 'disabled';
     this.tagger.css({
       bgColor: this.getStyle().dotColor,
     });
     return this;
   }
   isDisabled() {
-    return this.status === "disabled";
+    return this.status === 'disabled';
   }
   normal() {
-    this.status = "normal";
+    this.status = 'normal';
     this.tagger.css({
       bgColor: this.getStyle().dotColor,
     });
@@ -340,7 +338,10 @@ export class Shape extends EventReceiver {
     this.positions = positions;
     return this;
   }
-  public addPoint = _.throttle((point: Point) => {
+  public addPoint(point: Point): void {
+    this._throttledAddPoint(point);
+  }
+  private _throttledAddPoint = _.throttle((point: Point) => {
     // 避免抖动重复添加
     const last = this.positions[this.positions.length - 1];
     if (last.toString() !== point.toString()) {
@@ -348,7 +349,7 @@ export class Shape extends EventReceiver {
     }
   }, 100);
   public rmDot = (index: number) => {
-    if (this.type === "Rect") return;
+    if (this.type === 'Rect') return;
     if (this.positions.length <= 3) return;
     this.positions.splice(index, 1);
   };

@@ -5,23 +5,18 @@ import {
   AntMouseEvent,
   IAnte,
   IAntEvent,
-} from "./EventReceiver";
-import { Image, ImageLoadSource, ImagePlacement } from "./Image";
-import { Shape, ShapeType, QueryShapeInput } from "./Shape";
-import {
-  ShapeRegister,
-  IShapeCfg,
-  IShapeContent,
-  RegisterID,
-} from "./ShapeRegister";
-import { EventEmitter } from "./EventEmitter";
-import { Canvas } from "./Canvas";
-import { isInSide, isInCircle, getRectPoints, getAdaptImgScale } from "./utils";
-import { Point, Points } from "./structure";
-import { ICursor, displayCursor } from "./cursor";
-import _ from "./lodash";
-import { css, create } from "./element";
-import { MoveKeyCode, FuncKeyCode } from "./keycode";
+} from './EventReceiver';
+import { Image, ImageLoadSource, ImagePlacement } from './Image';
+import { Shape, ShapeType, QueryShapeInput } from './Shape';
+import { ShapeRegister, IShapeCfg, IShapeContent, RegisterID } from './ShapeRegister';
+import { EventEmitter } from './EventEmitter';
+import { Canvas } from './Canvas';
+import { isInSide, isInCircle, getRectPoints, getAdaptImgScale } from './utils';
+import { Point, Points } from './structure';
+import { ICursor, displayCursor } from './cursor';
+import _ from './lodash';
+import { css, create } from './element';
+import { MoveKeyCode, FuncKeyCode } from './keycode';
 
 // 默认配置
 const defaulOptions = {
@@ -59,15 +54,12 @@ export class Platform extends EventReceiver {
 
   public isExport?: boolean;
 
-  constructor(
-    container: HTMLDivElement,
-    LabelImgOptions?: Partial<LabelImgOptions>
-  ) {
+  constructor(container: HTMLDivElement, LabelImgOptions?: Partial<LabelImgOptions>) {
     super();
     this.container = container;
     css(this.container, {
-      position: "relative",
-      overflow: "hidden",
+      position: 'relative',
+      overflow: 'hidden',
     });
     this._options = Object.assign({}, defaulOptions, LabelImgOptions);
     this.emitter = new EventEmitter();
@@ -80,7 +72,7 @@ export class Platform extends EventReceiver {
     this.container.append(this.canvas.el());
 
     // 标签容器
-    const tagContainer = create("div");
+    const tagContainer = create('div');
     this.tagContainer = tagContainer;
     this.container.appendChild(this.tagContainer);
 
@@ -119,7 +111,7 @@ export class Platform extends EventReceiver {
     this.activeShape = null;
     this.drawing = null;
     this.shapeList = [];
-    this.tagContainer.innerHTML = "";
+    this.tagContainer.innerHTML = '';
   };
   /**
    * 重置图片大小与坐标点
@@ -160,8 +152,8 @@ export class Platform extends EventReceiver {
     };
     // 初始化事件相关
     const _initMouseEvent = () => {
-      antMouseEvents.forEach((type) => {
-        canvas.addEventListener(type, (e) => {
+      antMouseEvents.forEach(type => {
+        canvas.addEventListener(type, e => {
           e.preventDefault();
           const offset = [e.offsetX, e.offsetY] as Point;
           const isPropagation = true;
@@ -174,11 +166,7 @@ export class Platform extends EventReceiver {
           const isOnShape = this._isShapeMoving || !!shape;
           const isOnArc = this._isMouseDown || dotIndex !== -1;
 
-          let currentTarget: null | Image | Shape = isOnShape
-            ? shape
-            : isOnImage
-            ? Image
-            : null;
+          const currentTarget: null | Image | Shape = isOnShape ? shape : isOnImage ? Image : null;
           const currentDotIndex = dotIndex;
           position = offset;
           const ante = {
@@ -195,28 +183,24 @@ export class Platform extends EventReceiver {
           } as IAnte;
 
           switch (type) {
-            case "mousedown":
+            case 'mousedown':
               this._isMouseDown = true;
               break;
-            case "mouseup":
+            case 'mouseup':
               resetStatus();
               break;
-            case "mouseout":
+            case 'mouseout':
               resetStatus();
               break;
-            case "mouseleave":
+            case 'mouseleave':
               resetStatus();
               break;
-            case "mouseenter":
+            case 'mouseenter':
               canvas.focus();
               break;
           }
 
-          const runEventQueue = (
-            eventList: IAntEvent[],
-            ante: IAnte,
-            isTarget?: boolean
-          ) => {
+          const runEventQueue = (eventList: IAntEvent[], ante: IAnte, isTarget?: boolean) => {
             let len = eventList.length;
             const { isPropagation, currentTarget } = ante;
             while (len) {
@@ -237,10 +221,10 @@ export class Platform extends EventReceiver {
 
           const ev = e as AntMouseEvent;
           ev.ante = ante;
-          antLvs.forEach((lv) => {
+          antLvs.forEach(lv => {
             // shape event
             if (isOnShape) {
-              this.shapeList.forEach((shape) => {
+              this.shapeList.forEach(shape => {
                 runEventQueue(shape.getEventsByType(type, lv), ante, true);
               });
             }
@@ -260,28 +244,28 @@ export class Platform extends EventReceiver {
     };
     // 初始化鼠标手势
     const _initCursor = () => {
-      this.on("mousemove", ({ ante }) => {
+      this.on('mousemove', ({ ante }) => {
         position = ante.offset;
         if (!this.Image || this._isMouseDown) return;
         const { isOnShape, isOnArc } = ante;
         if (this.drawing) {
           // 当前正在标注
-          this.cursor("label");
+          this.cursor('label');
         } else if (isOnArc) {
           // 判断是否在点上
-          this.cursor("pointer");
+          this.cursor('pointer');
         } else if (isOnShape) {
           // 鼠标在图形上
-          this.cursor("default");
+          this.cursor('default');
         } else {
-          this.cursor("default");
+          this.cursor('default');
         }
       });
     };
     // 初始化辅助线
     const _initGuideLine = () => {
-      const lv = "top";
-      this.on("mousemove", lv, (e) => {
+      const lv = 'top';
+      this.on('mousemove', lv, e => {
         if (!this.options().guideLine) return;
         this._guideLineOrigin = e.ante.offset;
         this.render();
@@ -289,17 +273,17 @@ export class Platform extends EventReceiver {
     };
     // 初始化图片事件
     const _initImageEvent = () => {
-      const lv = "bot";
+      const lv = 'bot';
       let start = [0, 0]; // 点击在图片的起始位置
       const Image = this.Image;
-      this.on("mousedown", lv, (e) => {
+      this.on('mousedown', lv, e => {
         const { offset, isOnShape } = e.ante;
         if (isOnShape || !Image.complate) return;
         const [sx, sy] = offset; // start x, start y
         const [x, y] = Image.getOrigin(); // image origin
         start = [sx - x, sy - y];
       });
-      this.on("mousemove", lv, (e) => {
+      this.on('mousemove', lv, e => {
         const { offset, isOnShape } = e.ante;
         if (!this._isMouseDown || this._isShapeMoving) return;
         if (isOnShape) return;
@@ -318,13 +302,13 @@ export class Platform extends EventReceiver {
         resetStatus();
         start = [0, 0];
       };
-      this.on("mouseup", lv, cancel);
-      this.on("mouseout", lv, cancel);
+      this.on('mouseup', lv, cancel);
+      this.on('mouseout', lv, cancel);
     };
     // 初始化缩放事件
     const _initScaler = () => {
       const Image = this.Image;
-      Image.on("wheel", (e) => {
+      Image.on('wheel', e => {
         const Image = this.Image;
         if (!Image.el) return;
         const { offset } = e.ante;
@@ -334,16 +318,16 @@ export class Platform extends EventReceiver {
     };
     // 初始化标注事件
     const _initDrawEvent = () => {
-      const lv = "top";
+      const lv = 'top';
       let start: Point = [0, 0];
       const Image = this.Image;
-      this.on("mousedown", lv, (e) => {
+      this.on('mousedown', lv, e => {
         const { offset, isOnImage } = e.ante;
         if (!this.drawing || !Image.el) return;
         // 判断当前点击是否在 img 上
         if (!isOnImage) return;
         // 计算出当前点位在 img 的什么位置
-        let point = Image.toImagePoint(offset, this._scale);
+        const point = Image.toImagePoint(offset, this._scale);
 
         start = point;
         const cache = this.cache;
@@ -367,7 +351,7 @@ export class Platform extends EventReceiver {
               shape.updatePositions(cache.positions).close();
               this.shapeList.push(shape);
               this.cache = null;
-              this.emitter.emit("create", shape);
+              this.emitter.emit('create', shape);
               if (!this.continuity) {
                 this.labelOff();
               }
@@ -385,13 +369,13 @@ export class Platform extends EventReceiver {
           const shape = this.createShape(this.drawing.registerID, {
             positions,
             closed: false,
-            id: "cache",
+            id: 'cache',
           });
           this.cache = shape;
         }
         this.render();
       });
-      this.on("mousemove", lv, (e) => {
+      this.on('mousemove', lv, e => {
         const cache = this.cache;
         if (!this.drawing || !Image.complate || !cache) return;
         const { offset } = e.ante;
@@ -415,7 +399,7 @@ export class Platform extends EventReceiver {
           }
         }
       });
-      this.on("mouseup", lv, () => {
+      this.on('mouseup', lv, () => {
         const cache = this.cache;
         const shapeType = this.drawing?.type;
         start = [0, 0];
@@ -426,7 +410,7 @@ export class Platform extends EventReceiver {
           });
           shape.close();
           this.shapeList.push(shape);
-          this.emitter.emit("create", shape);
+          this.emitter.emit('create', shape);
           this.cache = null;
           if (!this.continuity) {
             this.labelOff();
@@ -434,11 +418,11 @@ export class Platform extends EventReceiver {
           this.render();
         }
       });
-      this.on("mouseout", lv, () => {});
+      this.on('mouseout', lv, () => {});
     };
     // 初始化图形事件
     const _initShapeEvent = () => {
-      const lv = "top";
+      const lv = 'top';
       let start: Point = [0, 0];
       let cp = [] as Points; // cache postion
       let dotIndex = -1;
@@ -447,17 +431,12 @@ export class Platform extends EventReceiver {
         this.loseActive();
         shape.setActive(true);
         this.activeShape = shape;
-        this.emitter.emit("select", shape);
+        this.emitter.emit('select', shape);
         this.render();
       };
 
-      this.on("mousedown", lv, (e) => {
-        const {
-          offset,
-          currentTarget: shape,
-          currentDotIndex,
-          isOnShape,
-        } = e.ante;
+      this.on('mousedown', lv, e => {
+        const { offset, currentTarget: shape, currentDotIndex, isOnShape } = e.ante;
         start = offset;
         if (this.drawing) return;
         if (!isOnShape || !shape) return;
@@ -489,17 +468,11 @@ export class Platform extends EventReceiver {
         // 	}
         // }
       });
-      this.on("mousemove", lv, (e) => {
+      this.on('mousemove', lv, e => {
         const { offsetX, offsetY, ante } = e;
         const { isOnShape } = ante;
 
-        if (
-          !isOnShape ||
-          !this.activeShape ||
-          this.drawing ||
-          !this._isMouseDown
-        )
-          return;
+        if (!isOnShape || !this.activeShape || this.drawing || !this._isMouseDown) return;
         this._isShapeMoving = true;
 
         const diff: Point = [offsetX - start[0], offsetY - start[1]];
@@ -510,14 +483,14 @@ export class Platform extends EventReceiver {
           rp = cp.map(([cx, cy]) => {
             return [cx + diff[0] / this._scale, cy + diff[1] / this._scale];
           });
-          this.cursor("drag");
+          this.cursor('drag');
         } else {
           // shape point move
           rp = cp.slice();
           const p = rp[dotIndex];
 
           const scale = this._scale;
-          if (this.activeShape.type === "Rect") {
+          if (this.activeShape.type === 'Rect') {
             switch (dotIndex) {
               case 1:
                 rp[0] = [rp[0][0], rp[0][1] + diff[1] / scale];
@@ -540,16 +513,16 @@ export class Platform extends EventReceiver {
           this.render();
         }
       });
-      this.on("mouseup", lv, (e) => {
+      this.on('mouseup', lv, () => {
         start = [0, 0];
         dotIndex = -1;
       });
     };
     // 快捷键
     const _initShortcutKey = () => {
-      canvas.addEventListener("keydown", (e) => {
+      canvas.addEventListener('keydown', e => {
         const keyCode = e.keyCode;
-        if (Object.values(MoveKeyCode).some((v) => keyCode === v)) {
+        if (Object.values(MoveKeyCode).some(v => keyCode === v)) {
           // 移动操作
           const distance = 10;
           const [x, y] = Image.getOrigin();
@@ -569,9 +542,9 @@ export class Platform extends EventReceiver {
           }
           this.render();
         }
-        if (Object.values(FuncKeyCode).some((v) => keyCode === v)) {
+        if (Object.values(FuncKeyCode).some(v => keyCode === v)) {
           switch (keyCode) {
-            case FuncKeyCode.F:
+            case FuncKeyCode.F: {
               if (!position) break;
               const [shape, dotIndex] = this.getTargetShape(position);
               if (shape && dotIndex !== -1) {
@@ -579,11 +552,12 @@ export class Platform extends EventReceiver {
               }
               this.render();
               break;
+            }
           }
         }
         keyDownCode = keyCode;
       });
-      canvas.addEventListener("keyup", () => {
+      canvas.addEventListener('keyup', () => {
         keyDownCode = null;
       });
     };
@@ -604,13 +578,13 @@ export class Platform extends EventReceiver {
     this.reset();
     return new Promise((c, e) => {
       this.Image.load(source).then(
-        (img) => {
+        img => {
           this.resize();
           this.render();
-          this.emitter.emit("imageReady");
+          this.emitter.emit('imageReady');
           c(img);
         },
-        (err) => {
+        err => {
           e(err);
         }
       );
@@ -621,20 +595,17 @@ export class Platform extends EventReceiver {
     this.Image.loadFromImg(img);
     this.resize();
     this.render();
-    this.emitter.emit("imageReady");
+    this.emitter.emit('imageReady');
   };
   /**
    * 注册图形
    * @param rid RegisterID 图形注册 ID
    * @param options IShapeCfg 图形配置
    */
-  public register = (
-    rid: RegisterID,
-    options: Omit<IShapeCfg, "registerID" | "name">
-  ) => {
+  public register = (rid: RegisterID, options: Omit<IShapeCfg, 'registerID' | 'name'>) => {
     if (this.isRegister(rid)) return;
     this.shapeRegister.add(rid, options);
-    this.emitter.emit("shapeRegister");
+    this.emitter.emit('shapeRegister');
   };
   /**
    * 获取已注册图形 map
@@ -667,12 +638,9 @@ export class Platform extends EventReceiver {
    */
   public label = (rid: RegisterID, continuity?: boolean) => {
     const drawing = this.shapeRegister.get(rid);
-    if (
-      (this.drawing && drawing && rid !== this.drawing.id) ||
-      (!this.drawing && drawing)
-    ) {
+    if ((this.drawing && drawing && rid !== this.drawing.id) || (!this.drawing && drawing)) {
       this.drawing = drawing;
-      this.emitter.emit("labelType");
+      this.emitter.emit('labelType');
     }
     if (!_.isUndefined(continuity)) {
       this.continuity = !!continuity;
@@ -680,7 +648,7 @@ export class Platform extends EventReceiver {
   };
   public getLabels = (): { key: string; name: string; type: string[] }[] => {
     const labelMaps = this.shapeRegister.getMap();
-    return Object.keys(labelMaps).map((key) => {
+    return Object.keys(labelMaps).map(key => {
       const label = labelMaps[key];
       const { tag, type } = label;
       return {
@@ -703,12 +671,12 @@ export class Platform extends EventReceiver {
    * @param idx number 待插入的位置
    */
   public addShape = (shape: Shape, idx?: number) => {
-    if (typeof idx === "number") {
+    if (typeof idx === 'number') {
       this.shapeList.splice(idx, 0, shape);
     } else {
       this.shapeList.push(shape);
-      this.emitter.emit("create");
-      this.emitter.emit("update");
+      this.emitter.emit('create');
+      this.emitter.emit('update');
     }
     this.render();
   };
@@ -722,8 +690,8 @@ export class Platform extends EventReceiver {
     shape?.tagger.remove();
     this.shapeList.splice(idx, 1);
     this.render();
-    this.emitter.emit("delete");
-    this.emitter.emit("update");
+    this.emitter.emit('delete');
+    this.emitter.emit('update');
   };
   public getTargetShape = (offset: Point) => {
     const Image = this.Image;
@@ -746,7 +714,7 @@ export class Platform extends EventReceiver {
     }
     if (!target) {
       // 过滤隐藏和禁用的 shape
-      const shapeList = this.shapeList.filter((shape) => shape.isEnable());
+      const shapeList = this.shapeList.filter(shape => shape.isEnable());
       let shapeLen = shapeList.length;
       while (shapeLen > 0) {
         const shape = shapeList[shapeLen - 1];
@@ -780,7 +748,7 @@ export class Platform extends EventReceiver {
   public labelOff = () => {
     this.drawing = null;
     this.continuity = false;
-    this.emitter.emit("labelType");
+    this.emitter.emit('labelType');
     if (this.cache) {
       this.cache = null;
       this.render();
@@ -806,16 +774,14 @@ export class Platform extends EventReceiver {
    * @param input QueryShapeInput 图形对象或 ID
    * @returns [number | null, Shape | null]
    */
-  private findShapeIndex = (
-    input: QueryShapeInput
-  ): [null | number, null | Shape] => {
+  private findShapeIndex = (input: QueryShapeInput): [null | number, null | Shape] => {
     let idx: null | number = null;
     if (input instanceof Shape) {
       const shape = input;
-      idx = this.shapeList.findIndex((item) => item === shape);
-    } else if (typeof input === "string") {
+      idx = this.shapeList.findIndex(item => item === shape);
+    } else if (typeof input === 'string') {
       const id = input;
-      idx = this.shapeList.findIndex((item) => item.id === id);
+      idx = this.shapeList.findIndex(item => item.id === id);
     }
     const shape = idx === null ? null : this.shapeList[idx];
     return [idx, shape];
@@ -828,13 +794,13 @@ export class Platform extends EventReceiver {
     return this.shapeList;
   };
   public getShapeByName = (name: string) => {
-    return this.shapeList.filter((shape) => shape.name === name);
+    return this.shapeList.filter(shape => shape.name === name);
   };
   /**
    * 取消所有图形高亮状态
    */
   private loseActive = () => {
-    this.shapeList.forEach((shape) => {
+    this.shapeList.forEach(shape => {
       shape.setActive(false);
     });
   };
@@ -876,10 +842,13 @@ export class Platform extends EventReceiver {
    * 设置手势
    * @param cursor ICursor
    */
-  public cursor = _.throttle((cursor: ICursor) => {
+  public cursor(cursor: ICursor): void {
+    this._throttledCursor(cursor);
+  }
+  private _throttledCursor = _.throttle((cursor: ICursor) => {
     this.canvas.cursor(displayCursor(cursor));
   }, 100);
-  public scale = (direction?: -1 | 1, point?: Point) => {
+  public scale(direction?: -1 | 1, point?: Point): number | void {
     if (_.isUndefined(direction)) {
       return this._scale;
     }
@@ -902,10 +871,10 @@ export class Platform extends EventReceiver {
       if (count === 2) return;
     }
     const after = direction * step;
-    let scale = Number((after + this._scale).toFixed(2));
+    const scale = Number((after + this._scale).toFixed(2));
 
     this.scaleTo(scale, point);
-  };
+  }
   public scaleTo = (scale: number, point?: Point) => {
     const _scale = Number(scale.toFixed(2));
     const Image = this.Image;
@@ -934,9 +903,7 @@ export class Platform extends EventReceiver {
     this.render();
   };
   private getShapeStyleScale = () => {
-    return this._options.shouldShapeStyleScale
-      ? this._scale
-      : Number((1 + this._scale).toFixed(2));
+    return this._options.shouldShapeStyleScale ? this._scale : Number((1 + this._scale).toFixed(2));
   };
   public moveTo = (origin: Point) => {
     this.Image.moveTo(origin);
@@ -946,19 +913,19 @@ export class Platform extends EventReceiver {
     if (!Image || !Image.complate || !Image.el) return;
     const [width, height] = Image.getSize();
     const shapeList = this.shapeList.slice();
-    const wrap = document.createElement("div");
+    const wrap = document.createElement('div');
     const lb = new Platform(wrap, {
       width,
       height,
     });
     lb.isExport = true;
     const map = this.getRegisterMap();
-    Object.keys(map).forEach((key) => {
+    Object.keys(map).forEach(key => {
       lb.register(key, map[key]);
     });
     lb.loadFormImg(Image.el);
     lb.scaleTo(1);
-    shapeList.forEach((shape) => {
+    shapeList.forEach(shape => {
       shape.setActive(false);
       lb.addShape(shape);
     });
@@ -969,17 +936,17 @@ export class Platform extends EventReceiver {
   };
   // 渲染相关
   private _clearCanvas = () => {
-    this.emitter.emit("beforeClear");
+    this.emitter.emit('beforeClear');
     this.canvas.clear();
-    this.emitter.emit("afterClear");
+    this.emitter.emit('afterClear');
   };
   private _renderBackground = () => {
     const { bgColor, width, height } = this.options();
-    this.emitter.emit("beforeRenderBackground");
+    this.emitter.emit('beforeRenderBackground');
     this.canvas.fillReact([0, 0], [width, height], {
       fillColor: bgColor,
     });
-    this.emitter.emit("afterRenderBackground");
+    this.emitter.emit('afterRenderBackground');
   };
   private _renderImage = () => {
     const ctx = this.canvas.ctx();
@@ -990,14 +957,14 @@ export class Platform extends EventReceiver {
     const x = width * this._scale;
     const y = height * this._scale;
     const [ox, oy] = Image.getOrigin();
-    this.emitter.emit("beforeRenderImage");
+    this.emitter.emit('beforeRenderImage');
     ctx.drawImage(el, ox, oy, x, y);
-    this.emitter.emit("afterRenderImage");
+    this.emitter.emit('afterRenderImage');
   };
   private _renderGuideLine = () => {
     const [x, y] = this._guideLineOrigin;
     const options = this.options();
-    const lineColor = "red";
+    const lineColor = 'red';
     const lineWidth = 1;
     const lineDash = [5];
     const row: Points = [
@@ -1061,16 +1028,13 @@ export class Platform extends EventReceiver {
      * shape 移动和标注状态不显示标签
      */
     const isTagShow =
-      this.isTagShow() &&
-      shape.isShowTag() &&
-      !this._isShapeMoving &&
-      !this.drawing;
+      this.isTagShow() && shape.isShowTag() && !this._isShapeMoving && !this.drawing;
     const tagger = shape.tagger;
     if (isTagShow) {
       if (this.isExport) {
         this.canvas.text(shape.tagContent, points[0], {
           bgColor: dotColor,
-          color: "#fff",
+          color: '#fff',
         });
       } else {
         const scale = this._scale;
@@ -1083,18 +1047,18 @@ export class Platform extends EventReceiver {
   };
   private _renderCache = () => {
     if (!this.cache) return;
-    this.emitter.emit("beforeRenderDrawing");
+    this.emitter.emit('beforeRenderDrawing');
     this._renderShape(this.cache);
-    this.emitter.emit("afterRenderDrawing");
+    this.emitter.emit('afterRenderDrawing');
   };
   private _renderShapeList = () => {
     const Image = this.Image;
     if (!Image || !Image.complate) return;
     const shapeList = this.shapeList;
     if (!shapeList.length) return;
-    this.emitter.emit("beforeRenderShape");
+    this.emitter.emit('beforeRenderShape');
     let active: null | Shape = null;
-    shapeList.forEach((shape) => {
+    shapeList.forEach(shape => {
       if (shape.isActive()) {
         active = shape;
         return;
@@ -1104,10 +1068,10 @@ export class Platform extends EventReceiver {
     if (active) {
       this._renderShape(active);
     }
-    this.emitter.emit("afterRenderShape");
+    this.emitter.emit('afterRenderShape');
   };
   public forceRender = () => {
-    this.emitter.emit("beforeRender");
+    this.emitter.emit('beforeRender');
     this._clearCanvas();
     this._renderBackground();
     this._renderImage();
@@ -1116,7 +1080,7 @@ export class Platform extends EventReceiver {
     if (this.options().guideLine) {
       this._renderGuideLine();
     }
-    this.emitter.emit("afterRender");
+    this.emitter.emit('afterRender');
   };
   public render = _.throttle(() => {
     this.forceRender();

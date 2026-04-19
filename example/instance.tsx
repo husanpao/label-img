@@ -1,17 +1,16 @@
-import React, { useEffect, useRef } from "react"
-import LabelImg from "../src/main"
-import { useLabelImg } from "./label-img-provider"
+import { useEffect, useRef } from 'react';
+import LabelImg from '../src/main';
+import { useLabelImg } from './label-img-provider';
 
 export const CreateInstance = () => {
-  const [_, setLb] = useLabelImg()
-  const ref = useRef<HTMLDivElement>(null)
+  const [, setLb] = useLabelImg();
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const lb = new LabelImg(ref.current as HTMLDivElement, {})
-    setLb(lb)
-  }, [])
+    const lb = new LabelImg(ref.current as HTMLDivElement, {});
+    setLb(lb);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  return (
-    <div ref={ref}></div>
-  )
-}
+  return <div ref={ref}></div>;
+};
