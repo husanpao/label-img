@@ -17,6 +17,17 @@ import { ICursor, displayCursor } from './cursor';
 import _ from './lodash';
 import { css, create } from './element';
 import { MoveKeyCode, FuncKeyCode } from './keycode';
+import { IExporter, IImageInfo } from './exporters/types';
+import { YOLOExporter } from './exporters/YOLOExporter';
+import { COCOExporter } from './exporters/COCOExporter';
+import {
+  HistoryManager,
+  IHistoryManager,
+  ICommand,
+  AddShapeCommand,
+  RemoveShapeCommand,
+} from './history';
+import { ClassManager, IClassManager, IClassConfig } from './classes';
 
 // 默认配置
 const defaulOptions = {
@@ -41,6 +52,8 @@ export class Platform extends EventReceiver {
   private cache: Shape | null;
   private activeShape: Shape | null;
   private shapeList: Shape[];
+  private history: IHistoryManager;
+  private classManager: IClassManager;
 
   public canvas: Canvas;
   public Image: Image;
@@ -88,6 +101,12 @@ export class Platform extends EventReceiver {
     this.drawing = null;
 
     this.shapeList = [];
+
+    // 初始化历史记录管理器
+    this.history = new HistoryManager();
+
+    // 初始化类别管理器
+    this.classManager = new ClassManager();
 
     this._isInit = false;
     this._isMouseDown = false;
@@ -669,8 +688,9 @@ export class Platform extends EventReceiver {
    * 添加图形
    * @param shape Shape 待添加的图形
    * @param idx number 待插入的位置
+   * @returns this 支持链式调用
    */
-  public addShape = (shape: Shape, idx?: number) => {
+  public addShape = (shape: Shape, idx?: number): this => {
     if (typeof idx === 'number') {
       this.shapeList.splice(idx, 0, shape);
     } else {
@@ -679,19 +699,22 @@ export class Platform extends EventReceiver {
       this.emitter.emit('update');
     }
     this.render();
+    return this;
   };
   /**
    * 删除图形
    * @param input QueryShapeInput 待删除的图形或 ID
+   * @returns this 支持链式调用
    */
-  public remove = (input: QueryShapeInput) => {
+  public remove = (input: QueryShapeInput): this => {
     const [idx, shape] = this.findShapeIndex(input);
-    if (idx === null) return;
+    if (idx === null) return this;
     shape?.tagger.remove();
     this.shapeList.splice(idx, 1);
     this.render();
     this.emitter.emit('delete');
     this.emitter.emit('update');
+    return this;
   };
   public getTargetShape = (offset: Point) => {
     const Image = this.Image;
@@ -736,11 +759,13 @@ export class Platform extends EventReceiver {
   /**
    * 设置选中的图形
    * @param shape Shape 选中的图形
+   * @returns this 支持链式调用
    */
-  public setActive = (shape: Shape) => {
+  public setActive = (shape: Shape): this => {
     this.loseActive();
     shape.setActive(true);
     this.render();
+    return this;
   };
   /**
    * 取消标注状态
@@ -758,16 +783,18 @@ export class Platform extends EventReceiver {
    * 改变图形排序
    * @param input QueryShapeInput 图形对象或 ID
    * @param flag boolean true: 添加到列表最前 false: 添加到列表最后
+   * @returns this 支持链式调用
    */
-  public orderShape = (input: QueryShapeInput, flag?: boolean) => {
+  public orderShape = (input: QueryShapeInput, flag?: boolean): this => {
     const [idx, shape] = this.findShapeIndex(input);
-    if (idx === null) return;
+    if (idx === null) return this;
     this.shapeList.splice(idx, 1);
     if (flag) {
       this.shapeList.unshift(shape as Shape);
     } else {
       this.shapeList.push(shape as Shape);
     }
+    return this;
   };
   /**
    * 查询 index 与 Shape 对象
@@ -797,6 +824,73 @@ export class Platform extends EventReceiver {
     return this.shapeList.filter(shape => shape.name === name);
   };
   /**
+   * 批量添加图形
+   * @param shapes Shape[] 图形数组
+   * @returns this 支持链式调用
+   */
+  public addShapes = (shapes: Shape[]): this => {
+    shapes.forEach(shape => {
+      this.shapeList.push(shape);
+    });
+    this.emitter.emit('create');
+    this.emitter.emit('update');
+    this.render();
+    return this;
+  };
+  /**
+   * 批量删除图形
+   * @param inputs QueryShapeInput[] 图形或 ID 数组
+   * @returns this 支持链式调用
+   */
+  public removeShapes = (inputs: QueryShapeInput[]): this => {
+    inputs.forEach(input => {
+      const [idx, shape] = this.findShapeIndex(input);
+      if (idx !== null) {
+        shape?.tagger.remove();
+        this.shapeList.splice(idx, 1);
+      }
+    });
+    this.render();
+    this.emitter.emit('delete');
+    this.emitter.emit('update');
+    return this;
+  };
+  /**
+   * 根据条件筛选图形
+   * @param predicate (shape: Shape) => boolean 筛选函数
+   * @returns Shape[] 符合条件的图形
+   */
+  public filterShapes = (predicate: (shape: Shape) => boolean): Shape[] => {
+    return this.shapeList.filter(predicate);
+  };
+  /**
+   * 批量更新图形
+   * @param predicate (shape: Shape) => boolean 筛选条件
+   * @param updates Partial<Shape> 更新内容
+   * @returns this 支持链式调用
+   */
+  public updateShapes = (
+    predicate: (shape: Shape) => boolean,
+    updates: Partial<Pick<Shape, 'style' | 'tagContent' | 'data'>>
+  ): this => {
+    this.shapeList.forEach(shape => {
+      if (predicate(shape)) {
+        if (updates.style) {
+          shape.style = _.merge({}, shape.style, updates.style);
+        }
+        if (updates.tagContent !== undefined) {
+          shape.tagContent = updates.tagContent;
+        }
+        if (updates.data !== undefined) {
+          shape.data = updates.data;
+        }
+      }
+    });
+    this.render();
+    this.emitter.emit('update');
+    return this;
+  };
+  /**
    * 取消所有图形高亮状态
    */
   private loseActive = () => {
@@ -807,12 +901,14 @@ export class Platform extends EventReceiver {
   /**
    * 设置辅助线显示
    * @param status boolean
+   * @returns this 支持链式调用
    */
-  public setGuideLine = (status?: boolean) => {
+  public setGuideLine = (status?: boolean): this => {
     this.setOptions({
       guideLine: _.isUndefined(status) ? !this.options().guideLine : !!status,
     });
     this.render();
+    return this;
   };
   /**
    * 获取是否允许标签显示
@@ -824,19 +920,23 @@ export class Platform extends EventReceiver {
   /**
    * 设置标签显示
    * @param status boolean 标签是否显示
+   * @returns this 支持链式调用
    */
-  public setTagShow = (status?: boolean) => {
+  public setTagShow = (status?: boolean): this => {
     this.setOptions({
       tagShow: _.isUndefined(status) ? !this.isTagShow : !!status,
     });
     this.render();
+    return this;
   };
   /**
    * 设置是否连续标注
    * @param status boolean
+   * @returns this 支持链式调用
    */
-  public setContinuity = (status: boolean) => {
+  public setContinuity = (status: boolean): this => {
     this.continuity = !!status;
+    return this;
   };
   /**
    * 设置手势
@@ -1085,4 +1185,342 @@ export class Platform extends EventReceiver {
   public render = _.throttle(() => {
     this.forceRender();
   }, 17);
+
+  // ==================== 数据导出方法 ====================
+  /**
+   * 导出标注数据
+   * @param format 'yolo' | 'coco' | 'json' 导出格式
+   * @returns string 导出的数据字符串
+   */
+  public export(format: 'yolo' | 'coco' | 'json'): string {
+    const imageInfo = this.getImageInfo();
+
+    switch (format) {
+      case 'yolo':
+        return new YOLOExporter().export(this.shapeList, imageInfo);
+      case 'coco':
+        return new COCOExporter().export(this.shapeList, imageInfo);
+      case 'json':
+        return this.exportJSON();
+      default:
+        throw new Error(`Unsupported export format: ${format}`);
+    }
+  }
+
+  /**
+   * 使用自定义导出器导出数据
+   * @param exporter IExporter 自定义导出器
+   * @returns string 导出的数据字符串
+   */
+  public exportWith(exporter: IExporter): string {
+    const imageInfo = this.getImageInfo();
+    return exporter.export(this.shapeList, imageInfo);
+  }
+
+  /**
+   * 获取图片信息
+   * @returns IImageInfo 图片信息
+   */
+  private getImageInfo(): IImageInfo {
+    const img = this.Image;
+    const [width, height] = img.getSize();
+    return {
+      width,
+      height,
+      url: img.el?.src,
+    };
+  }
+
+  /**
+   * 导出为 JSON 格式（内部格式）
+   * @returns string JSON 字符串
+   */
+  private exportJSON(): string {
+    const data = {
+      version: '1.0',
+      image: this.getImageInfo(),
+      shapes: this.shapeList.map(shape => ({
+        id: shape.id,
+        type: shape.type,
+        registerID: shape.registerID,
+        positions: shape.getPositions(),
+        data: shape.data,
+        tag: shape.tagContent,
+        style: shape.style,
+      })),
+    };
+    return JSON.stringify(data, null, 2);
+  }
+
+  /**
+   * 获取标注数据对象
+   * @returns IAnnotationData 标准化标注数据
+   */
+  public getAnnotationData() {
+    return {
+      version: '1.0',
+      image: this.getImageInfo(),
+      annotations: this.shapeList
+        .filter(shape => shape.visible && shape.status !== 'disabled')
+        .map((shape, idx) => ({
+          id: idx + 1,
+          classId: this.parseClassId(shape.registerID),
+          className: shape.registerID,
+          type: shape.type === 'Rect' ? 'rect' : 'polygon',
+          points: shape.getPositions().map(([x, y]) => [x, y]),
+          data: shape.data,
+        })),
+    };
+  }
+
+  private parseClassId(registerId: string): number {
+    const match = registerId.match(/_(\d+)$/);
+    return match ? parseInt(match[1], 10) : 0;
+  }
+
+  // ==================== 撤销/重做功能 ====================
+  /**
+   * 撤销上一步操作
+   * @returns boolean 是否成功撤销
+   */
+  public undo(): boolean {
+    const result = this.history.undo();
+    if (result) {
+      this.render();
+      this.emitter.emit('undo');
+    }
+    return result;
+  }
+
+  /**
+   * 重做上一步撤销的操作
+   * @returns boolean 是否成功重做
+   */
+  public redo(): boolean {
+    const result = this.history.redo();
+    if (result) {
+      this.render();
+      this.emitter.emit('redo');
+    }
+    return result;
+  }
+
+  /**
+   * 是否可以撤销
+   * @returns boolean
+   */
+  public canUndo(): boolean {
+    return this.history.canUndo();
+  }
+
+  /**
+   * 是否可以重做
+   * @returns boolean
+   */
+  public canRedo(): boolean {
+    return this.history.canRedo();
+  }
+
+  /**
+   * 清空历史记录
+   * @returns this 支持链式调用
+   */
+  public clearHistory(): this {
+    this.history.clear();
+    return this;
+  }
+
+  /**
+   * 执行命令（用于自定义命令）
+   * @param command ICommand 命令对象
+   * @returns this 支持链式调用
+   */
+  public executeCommand(command: ICommand): this {
+    this.history.execute(command);
+    return this;
+  }
+
+  /**
+   * 添加图形（支持撤销）
+   * @param shape Shape 待添加的图形
+   * @returns this 支持链式调用
+   */
+  public addShapeWithHistory(shape: Shape): this {
+    const command = new AddShapeCommand(
+      this.shapeList,
+      shape,
+      () => {
+        this.emitter.emit('create');
+        this.emitter.emit('update');
+      },
+      () => {
+        shape.tagger.remove();
+        this.emitter.emit('delete');
+        this.emitter.emit('update');
+      }
+    );
+    this.history.execute(command);
+    this.render();
+    return this;
+  }
+
+  /**
+   * 删除图形（支持撤销）
+   * @param input QueryShapeInput 待删除的图形或 ID
+   * @returns this 支持链式调用
+   */
+  public removeWithHistory(input: QueryShapeInput): this {
+    const [idx, shape] = this.findShapeIndex(input);
+    if (idx === null || !shape) return this;
+
+    const command = new RemoveShapeCommand(
+      this.shapeList,
+      shape,
+      () => {
+        shape.tagger.remove();
+        this.emitter.emit('delete');
+        this.emitter.emit('update');
+      },
+      () => {
+        this.emitter.emit('create');
+        this.emitter.emit('update');
+      }
+    );
+    this.history.execute(command);
+    this.render();
+    return this;
+  }
+
+  // ==================== 类别管理功能 ====================
+  /**
+   * 设置类别配置
+   * @param classes IClassConfig[] 类别配置数组
+   * @returns this 支持链式调用
+   */
+  public setClasses(classes: IClassConfig[]): this {
+    this.classManager.setClasses(classes);
+    return this;
+  }
+
+  /**
+   * 获取所有类别配置
+   * @returns IClassConfig[] 类别配置数组
+   */
+  public getClasses(): IClassConfig[] {
+    return this.classManager.getClasses();
+  }
+
+  /**
+   * 添加类别
+   * @param config Omit<IClassConfig, 'id'> 类别配置（不含 ID）
+   * @returns IClassConfig 新添加的类别
+   */
+  public addClass(config: Omit<IClassConfig, 'id'>): IClassConfig {
+    return this.classManager.addClass(config);
+  }
+
+  /**
+   * 删除类别
+   * @param id number 类别 ID
+   * @returns boolean 是否成功删除
+   */
+  public removeClass(id: number): boolean {
+    return this.classManager.removeClass(id);
+  }
+
+  /**
+   * 更新类别
+   * @param id number 类别 ID
+   * @param config Partial<Omit<IClassConfig, 'id'>> 更新的配置
+   * @returns boolean 是否成功更新
+   */
+  public updateClass(id: number, config: Partial<Omit<IClassConfig, 'id'>>): boolean {
+    return this.classManager.updateClass(id, config);
+  }
+
+  /**
+   * 根据 ID 获取类别
+   * @param id number 类别 ID
+   * @returns IClassConfig | undefined 类别配置
+   */
+  public getClassById(id: number): IClassConfig | undefined {
+    return this.classManager.getClassById(id);
+  }
+
+  /**
+   * 根据名称获取类别
+   * @param name string 类别名称
+   * @returns IClassConfig | undefined 类别配置
+   */
+  public getClassByName(name: string): IClassConfig | undefined {
+    return this.classManager.getClassByName(name);
+  }
+
+  /**
+   * 根据类别筛选图形
+   * @param classId number 类别 ID
+   * @returns Shape[] 符合条件的图形
+   */
+  public getShapesByClass(classId: number): Shape[] {
+    return this.shapeList.filter(shape => {
+      const registerId = shape.registerID;
+      const cls = this.classManager.getClassById(classId);
+      return cls && registerId === cls.name;
+    });
+  }
+
+  // ==================== 事件系统增强 ====================
+  /**
+   * 监听事件（支持链式调用）
+   * @param type 事件类型
+   * @param callback 回调函数
+   * @returns 取消监听的函数
+   */
+  public onEvent(
+    type: Parameters<EventEmitter['on']>[0],
+    callback: Parameters<EventEmitter['on']>[1]
+  ): () => void {
+    return this.emitter.on(type, callback);
+  }
+
+  /**
+   * 一次性监听事件
+   * @param type 事件类型
+   * @param callback 回调函数
+   * @returns 取消监听的函数
+   */
+  public onceEvent(
+    type: Parameters<EventEmitter['once']>[0],
+    callback: Parameters<EventEmitter['once']>[1]
+  ): () => void {
+    return this.emitter.once(type, callback);
+  }
+
+  /**
+   * 移除所有指定类型的监听器
+   * @param type 事件类型
+   * @returns this 支持链式调用
+   */
+  public offAllEvents(type: Parameters<EventEmitter['offAll']>[0]): this {
+    this.emitter.offAll(type);
+    return this;
+  }
+
+  /**
+   * 获取指定事件的监听器数量
+   * @param type 事件类型
+   * @returns 监听器数量
+   */
+  public listenerCount(type: Parameters<EventEmitter['listenerCount']>[0]): number {
+    return this.emitter.listenerCount(type);
+  }
+
+  /**
+   * 检查是否有指定事件的监听器
+   * @param type 事件类型
+   * @returns 是否有监听器
+   */
+  public hasListeners(type: Parameters<EventEmitter['hasListeners']>[0]): boolean {
+    return this.emitter.hasListeners(type);
+  }
 }

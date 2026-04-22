@@ -14,6 +14,8 @@ interface EmitEventMap {
   labelType: EventCallback; // 标注类型修改
   init: EventCallback; // 初始化
   imageReady: EventCallback; // 图片加载成功
+  undo: EventCallback; // 撤销
+  redo: EventCallback; // 重做
 
   shapeRegister: EventCallback; // 图形注册
 
@@ -92,5 +94,39 @@ export class EventEmitter {
       fn: cb,
       type: 'once',
     });
+    return () => {
+      const events = this.getEvents(type);
+      const idx = events.findIndex(({ fn }) => fn === cb);
+      if (idx > -1) {
+        events.splice(idx, 1);
+      }
+    };
+  }
+
+  /**
+   * 移除所有指定类型的监听器
+   * @param type 事件类型
+   */
+  offAll<K extends keyof EmitEventMap>(type: K): void {
+    const events = this.getEvents(type);
+    events.length = 0;
+  }
+
+  /**
+   * 获取指定事件的监听器数量
+   * @param type 事件类型
+   * @returns 监听器数量
+   */
+  listenerCount<K extends keyof EmitEventMap>(type: K): number {
+    return this.getEvents(type).length;
+  }
+
+  /**
+   * 检查是否有指定事件的监听器
+   * @param type 事件类型
+   * @returns 是否有监听器
+   */
+  hasListeners<K extends keyof EmitEventMap>(type: K): boolean {
+    return this.listenerCount(type) > 0;
   }
 }

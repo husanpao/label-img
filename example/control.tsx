@@ -1,5 +1,18 @@
 import { useState } from 'react';
-import { Button, Tag, Switch, Modal, Image, Row, Col, Divider, Tabs } from 'antd';
+import {
+  Button,
+  Tag,
+  Switch,
+  Modal,
+  Image,
+  Row,
+  Col,
+  Divider,
+  Tabs,
+  Space,
+  message,
+  Select,
+} from 'antd';
 import SourceModal from './source-modal';
 
 import { useLabelImg } from './label-img-provider';
@@ -81,6 +94,10 @@ const Control = () => {
   const [continuity, setContinuity] = useState(false);
   const [isCreate, setIsCreate] = useState(false);
   const [base64, setBase64] = useState('');
+  const [exportFormat, setExportFormat] = useState<'yolo' | 'coco' | 'json'>('yolo');
+  const [classes, setClasses] = useState<
+    { id: number; name: string; color: string; shortcut?: string }[]
+  >([]);
 
   const render = () => {
     const list = lb?.getShapeList();
@@ -107,9 +124,6 @@ const Control = () => {
     <div className="control">
       <Divider></Divider>
       <Row justify="space-between" align="middle">
-        <Col className="gutter-row" span={8}>
-          <a href="https://github.com/hold-baby/label-img">go to github</a>
-        </Col>
         <Col span={8}>
           <Button
             onClick={() => {
@@ -149,6 +163,100 @@ const Control = () => {
           );
         })}
       </Row>
+      <Divider orientation="left">类别管理（新功能）</Divider>
+      <Space direction="vertical" style={{ width: '100%' }}>
+        <Space>
+          <Button
+            size="small"
+            type="primary"
+            onClick={() => {
+              // 设置标准类别配置
+              const newClasses = [
+                { id: 0, name: 'person', color: '#FF0000', shortcut: '1' },
+                { id: 1, name: 'car', color: '#00FF00', shortcut: '2' },
+                { id: 2, name: 'dog', color: '#0000FF', shortcut: '3' },
+              ];
+              lb?.setClasses(newClasses);
+              setClasses(newClasses);
+              message.success('类别配置已设置');
+            }}
+          >
+            设置示例类别
+          </Button>
+          <Button
+            size="small"
+            onClick={() => {
+              const cls = lb?.getClasses();
+              console.log('当前类别:', cls);
+              message.info(`共有 ${cls?.length || 0} 个类别，请查看控制台`);
+            }}
+          >
+            查看类别
+          </Button>
+          <Button
+            size="small"
+            onClick={() => {
+              const newClass = lb?.addClass({
+                name: `class_${Date.now()}`,
+                color: '#FF00FF',
+                shortcut: String(classes.length + 1),
+              });
+              if (newClass) {
+                setClasses([...classes, newClass]);
+                message.success(`添加类别: ${newClass.name}`);
+              }
+            }}
+          >
+            添加类别
+          </Button>
+        </Space>
+        <div>
+          {classes.map(cls => (
+            <Tag key={cls.id} color={cls.color}>
+              {cls.name} (快捷键: {cls.shortcut})
+            </Tag>
+          ))}
+        </div>
+      </Space>
+      <Divider orientation="left">批量操作（新功能）</Divider>
+      <Space>
+        <Button
+          size="small"
+          onClick={() => {
+            const shapes = lb?.getShapeList();
+            if (shapes && shapes.length > 0) {
+              const allRed = shapes[0].style?.normal?.lineColor === '#FF0000';
+              lb?.updateShapes(() => true, {
+                style: {
+                  normal: { lineColor: allRed ? '#00FF00' : '#FF0000' },
+                  disabled: {},
+                  active: {},
+                },
+              });
+              message.success('批量更新样式完成');
+              render();
+            }
+          }}
+        >
+          批量更新样式
+        </Button>
+        <Button
+          size="small"
+          danger
+          onClick={() => {
+            const shapes = lb?.filterShapes(s => s.isHidden());
+            if (shapes && shapes.length > 0) {
+              lb?.removeShapes(shapes);
+              message.success(`批量删除 ${shapes.length} 个隐藏图形`);
+              render();
+            } else {
+              message.info('没有隐藏的图形可删除');
+            }
+          }}
+        >
+          批量删除隐藏图形
+        </Button>
+      </Space>
       <Divider orientation="left">控制</Divider>
       <div className="continuity">
         <Switch
@@ -202,6 +310,36 @@ const Control = () => {
         <Button
           size="small"
           onClick={() => {
+            const result = lb?.undo();
+            if (result) {
+              message.success('撤销成功');
+              render();
+            } else {
+              message.info('没有可撤销的操作');
+            }
+          }}
+          disabled={!lb?.canUndo()}
+        >
+          撤销
+        </Button>
+        <Button
+          size="small"
+          onClick={() => {
+            const result = lb?.redo();
+            if (result) {
+              message.success('重做成功');
+              render();
+            } else {
+              message.info('没有可重做的操作');
+            }
+          }}
+          disabled={!lb?.canRedo()}
+        >
+          重做
+        </Button>
+        <Button
+          size="small"
+          onClick={() => {
             const list = lb?.getShapeList().map(({ id, tagContent, positions }) => {
               return {
                 id,
@@ -215,6 +353,31 @@ const Control = () => {
         >
           获取数据
         </Button>
+        <Button
+          size="small"
+          onClick={() => {
+            try {
+              const data = lb?.export(exportFormat);
+              console.log(`${exportFormat.toUpperCase()} 格式导出:`, data);
+              message.success(`${exportFormat.toUpperCase()} 格式导出成功，请查看控制台`);
+            } catch (e) {
+              message.error('导出失败: ' + (e as Error).message);
+            }
+          }}
+        >
+          导出标注
+        </Button>
+        <Select
+          size="small"
+          value={exportFormat}
+          onChange={setExportFormat}
+          style={{ width: 100 }}
+          options={[
+            { label: 'YOLO', value: 'yolo' },
+            { label: 'COCO', value: 'coco' },
+            { label: 'JSON', value: 'json' },
+          ]}
+        />
         <Button
           size="small"
           onClick={() => {

@@ -44,11 +44,13 @@ export interface AntMouseEvent extends MouseEvent, WheelEvent {
 }
 type ICallback = (e: AntMouseEvent, antEvent: Omit<IAntEvent, 'callback'>) => void;
 // EventHandler interface is used internally for event type definitions
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 interface EventHandler {
   lv: IAntLv;
   callback: ICallback;
 }
+
+// Prevent "declared but never read" error by using in type assertion
+export type { EventHandler };
 export interface IAntEvent {
   lv: IAntLv;
   type: IAntMouseEvent;
